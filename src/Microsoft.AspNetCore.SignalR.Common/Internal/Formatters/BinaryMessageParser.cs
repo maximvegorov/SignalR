@@ -10,36 +10,47 @@ namespace Microsoft.AspNetCore.SignalR.Internal.Formatters
     {
         public static bool TryParseMessage(ref ReadOnlyBuffer<byte> buffer, out ReadOnlyBuffer<byte> payload)
         {
-            long length = 0;
-            payload = default(ReadOnlyBuffer<byte>);
+            payload = default;
 
-            if (buffer.Length < sizeof(long))
+            if (buffer.IsEmpty)
             {
                 return false;
             }
 
-            // Read the length
-            length = buffer.Span.Slice(0, sizeof(long)).ReadBigEndian<long>();
+            var length = 0U;
+            var numBytes = 0;
 
-            if (length > Int32.MaxValue)
+            byte byteRead;
+            do
             {
-                throw new FormatException("Messages over 2GB in size are not supported");
+                byteRead = buffer.Span.Slice(numBytes, sizeof(byte)).Read<byte>();
+                length = length | (((uint)(byteRead & 0x7f)) << (numBytes * 7));
+                numBytes++;
+            }
+            while (numBytes < Math.Min(5, buffer.Length) && ((byteRead & 0x80) != 0));
+
+            // size bytes are missing
+            if ((byteRead & 0x80) != 0 && (numBytes < 5))
+            {
+                return false;
             }
 
-            // Skip over the length
-            var remaining = buffer.Slice(sizeof(long));
+            if ((byteRead & 0x80) != 0 || (numBytes == 5 && byteRead > 7))
+            {
+                throw new FormatException("Messages over 2GB in size are not supported.");
+            }
 
             // We don't have enough data
-            while (remaining.Length < (int)length)
+            if (buffer.Length < length + numBytes)
             {
                 return false;
             }
 
             // Get the payload
-            payload = remaining.Slice(0, (int)length);
+            payload = buffer.Slice(numBytes, (int)length);
 
             // Skip the payload
-            buffer = remaining.Slice((int)length);
+            buffer = buffer.Slice(numBytes + (int)length);
             return true;
         }
     }
