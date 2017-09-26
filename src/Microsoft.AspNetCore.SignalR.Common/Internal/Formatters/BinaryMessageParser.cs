@@ -2,12 +2,14 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Binary;
 
 namespace Microsoft.AspNetCore.SignalR.Internal.Formatters
 {
     public static class BinaryMessageParser
     {
+        private static int[] _numBitsToShift = new[] { 0, 7, 14, 21, 28 };
+        private const int MaxLengthPrefixSize = 5;
+
         public static bool TryParseMessage(ref ReadOnlyBuffer<byte> buffer, out ReadOnlyBuffer<byte> payload)
         {
             payload = default;
@@ -17,25 +19,38 @@ namespace Microsoft.AspNetCore.SignalR.Internal.Formatters
                 return false;
             }
 
+            // The payload starts with a length prefix encoded as a VarInt. VarInts use the most significant bit
+            // as a marker whether the byte is the last byte of the VarInt or if it spans to the next byte. Bytes
+            // appear in the reverse order - i.e. the first byte contains the least significant bits of the value
+            // Examples:
+            // VarInt: 0x35 - %00111001 - the most significant bit is 0 so the value is %x0111001 i.e. 0x35 (53)
+            // VarInt: 0x80 0x25 - %10000000 %00101001 - the most significant bit of the first byte is 1 so the
+            // remaining bits (%x0000000) are the lowest bits of the value. The most significant bit of the second
+            // byte is 0 meaning this is last byte of the VarInt. The actual value bits (%x0101001) need to be
+            // prepended to the bits we already read so the values is %01010010000000 i.e. 0x1480 (5248)
+            // We support paylads up to 2GB so the biggest number we support is 7fffffff which when encoded as
+            // VarInt is 0xFF 0xFF 0xFF 0xFF 0x7F - hence the maximum length prefix is 5 bytes.
+
             var length = 0U;
             var numBytes = 0;
 
+            var lengthPrefixBuffer = buffer.Span.Slice(0, Math.Min(MaxLengthPrefixSize, buffer.Length));
             byte byteRead;
             do
             {
-                byteRead = buffer.Span.Slice(numBytes, sizeof(byte)).Read<byte>();
-                length = length | (((uint)(byteRead & 0x7f)) << (numBytes * 7));
+                byteRead = lengthPrefixBuffer[numBytes];
+                length = length | (((uint)(byteRead & 0x7f)) << _numBitsToShift[numBytes]);
                 numBytes++;
             }
-            while (numBytes < Math.Min(5, buffer.Length) && ((byteRead & 0x80) != 0));
+            while (numBytes < lengthPrefixBuffer.Length && ((byteRead & 0x80) != 0));
 
             // size bytes are missing
-            if ((byteRead & 0x80) != 0 && (numBytes < 5))
+            if ((byteRead & 0x80) != 0 && (numBytes < MaxLengthPrefixSize))
             {
                 return false;
             }
 
-            if ((byteRead & 0x80) != 0 || (numBytes == 5 && byteRead > 7))
+            if ((byteRead & 0x80) != 0 || (numBytes == MaxLengthPrefixSize && byteRead > 7))
             {
                 throw new FormatException("Messages over 2GB in size are not supported.");
             }

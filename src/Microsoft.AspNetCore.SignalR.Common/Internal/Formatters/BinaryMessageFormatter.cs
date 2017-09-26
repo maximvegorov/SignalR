@@ -11,6 +11,9 @@ namespace Microsoft.AspNetCore.SignalR.Internal.Formatters
     {
         public unsafe static void WriteMessage(ReadOnlySpan<byte> payload, Stream output)
         {
+            // This code writes length prefix of the message as a VarInt. Read the comment in
+            // the BinaryMessageParser.TryParseMessage for details.
+
             var lenBuffer = stackalloc byte[5];
             var lenNumBytes = 0;
             var length = payload.Length;

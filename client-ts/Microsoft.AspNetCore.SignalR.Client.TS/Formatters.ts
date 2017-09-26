@@ -21,6 +21,10 @@ export namespace TextMessageFormat {
 }
 
 export namespace BinaryMessageFormat {
+
+    // The length prefix of binary messages is encoded as VarInt. Read the comment in
+    // the BinaryMessageParser.TryParseMessage for details.
+
     export function write(output: Uint8Array): ArrayBuffer {
         // .byteLength does is undefined in IE10
         let size = output.byteLength || output.length;
@@ -48,6 +52,8 @@ export namespace BinaryMessageFormat {
     export function parse(input: ArrayBuffer): Uint8Array[] {
         let result: Uint8Array[] = [];
         let uint8Array = new Uint8Array(input);
+        const MaxLengthPrefixSize = 5;
+        const NumBitsToShift = [0, 7, 14, 21, 28 ];
 
         for (let offset = 0; offset < input.byteLength;) {
             let numBytes = 0;
@@ -56,16 +62,16 @@ export namespace BinaryMessageFormat {
             do
             {
                 byteRead = uint8Array[offset + numBytes];
-                size = size | ((byteRead & 0x7f) << (numBytes * 7));
+                size = size | ((byteRead & 0x7f) << (NumBitsToShift[numBytes]));
                 numBytes++;
             }
-            while (numBytes < Math.min(5, input.byteLength - offset) && (byteRead & 0x80) != 0);
+            while (numBytes < Math.min(MaxLengthPrefixSize, input.byteLength - offset) && (byteRead & 0x80) != 0);
 
-            if ((byteRead & 0x80) !== 0 && numBytes < 5) {
+            if ((byteRead & 0x80) !== 0 && numBytes < MaxLengthPrefixSize) {
                 throw new Error("Cannot read message size.");
             }
 
-            if (numBytes === 5 && byteRead > 7) {
+            if (numBytes === MaxLengthPrefixSize && byteRead > 7) {
                 throw new Error("Messages bigger than 2GB are not supported.");
             }
 
