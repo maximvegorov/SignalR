@@ -9,9 +9,9 @@ namespace Microsoft.AspNetCore.SignalR.Internal.Formatters
 {
     public static class BinaryMessageFormatter
     {
-        public static void WriteMessage(ReadOnlySpan<byte> payload, Stream output)
+        public unsafe static void WriteMessage(ReadOnlySpan<byte> payload, Stream output)
         {
-            var lenBuffer = new byte[5];
+            var lenBuffer = stackalloc byte[5];
             var lenNumBytes = 0;
             var length = payload.Length;
             do
@@ -29,7 +29,7 @@ namespace Microsoft.AspNetCore.SignalR.Internal.Formatters
             var buffer = ArrayPool<byte>.Shared.Rent(lenNumBytes + payload.Length);
             var bufferSpan = buffer.AsSpan();
 
-            lenBuffer.AsSpan().Slice(0, lenNumBytes).CopyTo(bufferSpan);
+            new Span<byte>(lenBuffer, lenNumBytes).CopyTo(bufferSpan);
             bufferSpan = bufferSpan.Slice(lenNumBytes);
             payload.CopyTo(bufferSpan);
             output.Write(buffer, 0, lenNumBytes + payload.Length);

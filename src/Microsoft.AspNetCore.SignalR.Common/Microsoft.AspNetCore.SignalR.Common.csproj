@@ -6,6 +6,10 @@
     <RootNamespace>Microsoft.AspNetCore.SignalR</RootNamespace>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="$(JsonNetVersion)" />
     <PackageReference Include="MsgPack.Cli" Version="$(MsgPackVersion)" />

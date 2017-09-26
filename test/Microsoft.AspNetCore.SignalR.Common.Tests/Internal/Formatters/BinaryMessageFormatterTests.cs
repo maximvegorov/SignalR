@@ -117,8 +117,6 @@ namespace Microsoft.AspNetCore.Sockets.Tests.Internal.Formatters
 
         public static IEnumerable<object[]> RandomPayloads()
         {
-            var r = new Random();
-
             // boundaries
             yield return new[] { CreatePayload(0) };
             yield return new[] { CreatePayload(1) };
