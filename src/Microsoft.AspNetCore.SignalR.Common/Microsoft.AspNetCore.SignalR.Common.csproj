@@ -4,9 +4,6 @@
     <Description>Common serialiation primitives for SignalR Clients Servers</Description>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>Microsoft.AspNetCore.SignalR</RootNamespace>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
