@@ -23,7 +23,7 @@ namespace Microsoft.AspNetCore.SignalR.Internal.Formatters
             // as a marker whether the byte is the last byte of the VarInt or if it spans to the next byte. Bytes
             // appear in the reverse order - i.e. the first byte contains the least significant bits of the value
             // Examples:
-            // VarInt: 0x35 - %00111001 - the most significant bit is 0 so the value is %x0111001 i.e. 0x35 (53)
+            // VarInt: 0x35 - %00110101 - the most significant bit is 0 so the value is %x0110101 i.e. 0x35 (53)
             // VarInt: 0x80 0x25 - %10000000 %00101001 - the most significant bit of the first byte is 1 so the
             // remaining bits (%x0000000) are the lowest bits of the value. The most significant bit of the second
             // byte is 0 meaning this is last byte of the VarInt. The actual value bits (%x0101001) need to be
